@@ -1,0 +1,227 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snake Game ETH - Smooth</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background-color: #f0f0f0;
+      font-family: Arial, sans-serif;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    canvas {
+      width: 100vmin;
+      height: 100vmin;
+      background: #fff;
+      border: 2px solid #333;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    }
+
+    #score-display,
+    #instructions {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 6px 12px;
+      border-radius: 5px;
+      z-index: 2;
+    }
+
+    #score-display {
+      top: 10px;
+    }
+
+    #instructions {
+      bottom: 10px;
+    }
+
+    #game-over {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      z-index: 3;
+    }
+
+    #restart-btn {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="score-display">Score: 0</div>
+    <canvas id="game-canvas"></canvas>
+    <div id="instructions">Use arrow keys to control the snake</div>
+    <div id="game-over">
+      <h2>Game Over!</h2>
+      <div id="final-score">Score: 0</div>
+      <button id="restart-btn">Play Again</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('score-display');
+    const finalScore = document.getElementById('final-score');
+    const gameOverScreen = document.getElementById('game-over');
+    const restartBtn = document.getElementById('restart-btn');
+
+    let gridSize = 32;
+    let tileCount = 15;
+    let snake = [{ x: 7, y: 7 }];
+    let direction = 'right';
+    let nextDirection = 'right';
+    let food = { x: 10, y: 10 };
+    let score = 0;
+    let fps = 8;
+    let frameInterval = 1000 / fps;
+    let lastTime = 0;
+
+    let snakeHead = new Image();
+    let snakeBody = new Image();
+    let foodImage = new Image();
+    snakeHead.src = 'image/head.png';
+    snakeBody.src = 'image/body.png';
+    foodImage.src = 'image/eth.png';
+
+    function resizeCanvas() {
+      const size = canvas.getBoundingClientRect().width;
+      canvas.width = size;
+      canvas.height = size;
+      gridSize = Math.floor(size / 15);
+      tileCount = Math.floor(size / gridSize);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function drawGame() {
+      ctx.fillStyle = '#2c2c2c';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = '#3d3d3d';
+      for (let i = 0; i < tileCount; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * gridSize, 0);
+        ctx.lineTo(i * gridSize, canvas.height);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i * gridSize);
+        ctx.lineTo(canvas.width, i * gridSize);
+        ctx.stroke();
+      }
+
+      for (let i = 0; i < snake.length; i++) {
+        let segment = snake[i];
+        if (i === 0) {
+          ctx.drawImage(snakeHead, segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
+        } else {
+          ctx.drawImage(snakeBody, segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
+        }
+      }
+
+      ctx.drawImage(foodImage, food.x * gridSize, food.y * gridSize, gridSize, gridSize);
+    }
+
+    function updateGame() {
+      let head = { ...snake[0] };
+      direction = nextDirection;
+      switch (direction) {
+        case 'up': head.y -= 1; break;
+        case 'down': head.y += 1; break;
+        case 'left': head.x -= 1; break;
+        case 'right': head.x += 1; break;
+      }
+
+      if (head.x < 0 || head.y < 0 || head.x >= tileCount || head.y >= tileCount || snake.some(s => s.x === head.x && s.y === head.y)) {
+        finalScore.textContent = 'Score: ' + score;
+        gameOverScreen.style.display = 'block';
+        return false;
+      }
+
+      snake.unshift(head);
+      if (head.x === food.x && head.y === food.y) {
+        score++;
+        scoreDisplay.textContent = 'Score: ' + score;
+        food = {
+          x: Math.floor(Math.random() * tileCount),
+          y: Math.floor(Math.random() * tileCount)
+        };
+        fps = Math.min(20, fps + 0.5);
+        frameInterval = 1000 / fps;
+      } else {
+        snake.pop();
+      }
+      return true;
+    }
+
+    function gameLoop(timestamp) {
+      if (timestamp - lastTime >= frameInterval) {
+        if (!updateGame()) return;
+        drawGame();
+        lastTime = timestamp;
+      }
+      requestAnimationFrame(gameLoop);
+    }
+
+    document.addEventListener('keydown', e => {
+      switch (e.key) {
+        case 'ArrowUp': if (direction !== 'down') nextDirection = 'up'; break;
+        case 'ArrowDown': if (direction !== 'up') nextDirection = 'down'; break;
+        case 'ArrowLeft': if (direction !== 'right') nextDirection = 'left'; break;
+        case 'ArrowRight': if (direction !== 'left') nextDirection = 'right'; break;
+      }
+    });
+
+    restartBtn.addEventListener('click', () => {
+      snake = [{ x: 7, y: 7 }];
+      direction = 'right';
+      nextDirection = 'right';
+      food = { x: 10, y: 10 };
+      score = 0;
+      fps = 8;
+      frameInterval = 1000 / fps;
+      scoreDisplay.textContent = 'Score: 0';
+      gameOverScreen.style.display = 'none';
+      lastTime = 0;
+      requestAnimationFrame(gameLoop);
+    });
+
+    window.onload = () => {
+      requestAnimationFrame(gameLoop);
+    };
+  </script>
+</body>
+</html>
